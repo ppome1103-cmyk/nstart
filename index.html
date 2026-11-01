@@ -8,17 +8,18 @@
     />
     <meta name="theme-color" content="#ffd6e7" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <title>둘이섬</title>
+    <title>둘이랜드</title>
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <canvas id="game"></canvas>
+    <canvas id="fx"></canvas>
 
     <!-- 로비 -->
     <div id="lobby" class="screen">
       <div class="card">
-        <h1>둘이섬 🏝️</h1>
-        <p class="sub">둘이서만 노는 작은 섬</p>
+        <h1>둘이랜드 🎡</h1>
+        <p class="sub">둘이서만 노는 놀이공원</p>
 
         <label class="field">
           <span>내 이름</span>
@@ -33,7 +34,7 @@
         <button id="btn-host" class="btn primary">방 만들기</button>
 
         <div class="join-row">
-          <input id="code" maxlength="4" placeholder="방 코드" autocomplete="off" inputmode="latin" />
+          <input id="code" maxlength="4" placeholder="방 코드" autocomplete="off" />
           <button id="btn-join" class="btn">참가</button>
         </div>
 
@@ -42,33 +43,10 @@
       </div>
     </div>
 
+    <div id="loading" class="screen hidden"><div class="card"><h1>🎡</h1><p class="sub">놀이공원 여는 중...</p></div></div>
+
     <!-- 게임 HUD -->
-    <div id="hud" class="hidden">
-      <div id="topbar">
-        <div id="room-badge"></div>
-        <div id="status"></div>
-      </div>
-
-      <div id="joystick"><div id="stick"></div></div>
-
-      <div id="actions">
-        <button id="btn-jump" class="round big">⬆️</button>
-      </div>
-
-      <div id="emotes">
-        <button data-emote="wave" class="round">👋</button>
-        <button data-emote="heart" class="round">💖</button>
-        <button data-emote="laugh" class="round">😆</button>
-        <button id="btn-chat" class="round">💬</button>
-      </div>
-
-      <form id="chat-form" class="hidden">
-        <input id="chat-input" maxlength="40" placeholder="말하기..." autocomplete="off" />
-        <button class="btn primary">보내기</button>
-      </form>
-
-      <div id="toast"></div>
-    </div>
+    <div id="hud" class="hidden"></div>
 
     <script type="module" src="./src/main.js"></script>
   </body>
