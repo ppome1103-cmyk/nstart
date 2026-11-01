@@ -199,30 +199,56 @@ function showRoomBadge(code) {
   badge.style.pointerEvents = 'auto';
   badge.onclick = async () => {
     const url = `${location.origin}${location.pathname}?room=${code}`;
-    try {
-      if (navigator.share) await navigator.share({ title: '둘이섬', text: `둘이섬에 놀러와! 방 코드 ${code}`, url });
-      else {
-        await navigator.clipboard.writeText(url);
-        toast('초대 링크를 복사했어요');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: '둘이섬', text: `둘이섬에 놀러와! 방 코드 ${code}`, url });
+        return;
+      } catch (e) {
+        if (e?.name === 'AbortError') return; // 공유 취소
       }
-    } catch {
-      /* 공유 취소 */
     }
+    toast((await copyText(url)) ? '초대 링크를 복사했어요' : `방 코드 ${code} 를 알려주세요`);
   };
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // 카톡 안 브라우저 등 clipboard API가 막힌 곳
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch {
+      /* 무시 */
+    }
+    ta.remove();
+    return ok;
+  }
 }
 
 $('btn-host').onclick = async () => {
   const p = profile();
   lobbyBusy(true, '방을 만드는 중...');
   try {
-    const code = await setupNet(p).host();
+    const code = await setupNet(p).host((m) => lobbyBusy(true, m));
     startGame(p, -1.2);
     showRoomBadge(code);
     setStatus('상대를 기다리는 중...');
     toast('방 코드를 상대에게 알려주세요');
   } catch (err) {
     console.error(err);
-    lobbyBusy(false, '방을 만들지 못했어요. 인터넷 연결을 확인해주세요.');
+    if (net) net.closed = true;
+    net?.peer?.destroy();
+    net = null;
+    lobbyBusy(false, `방을 만들지 못했어요. 인터넷 연결을 확인해주세요. (${err.type || err.message})`);
   }
 };
 
@@ -232,14 +258,15 @@ $('btn-join').onclick = async () => {
   const p = profile();
   lobbyBusy(true, '들어가는 중...');
   try {
-    await setupNet(p).join(code);
+    await setupNet(p).join(code, (m) => lobbyBusy(true, m));
     startGame(p, 1.2);
     showRoomBadge(code);
   } catch (err) {
     console.error(err);
+    if (net) net.closed = true;
     net?.peer?.destroy();
     net = null;
-    lobbyBusy(false, err.message || '연결하지 못했어요');
+    lobbyBusy(false, err.message || `연결하지 못했어요 (${err.type})`);
   }
 };
 
