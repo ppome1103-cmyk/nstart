@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffd6e7" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>둘이섬</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <!-- 로비 -->
+    <div id="lobby" class="screen">
+      <div class="card">
+        <h1>둘이섬 🏝️</h1>
+        <p class="sub">둘이서만 노는 작은 섬</p>
+
+        <label class="field">
+          <span>내 이름</span>
+          <input id="name" maxlength="8" placeholder="이름" autocomplete="off" />
+        </label>
+
+        <div class="field">
+          <span>내 색깔</span>
+          <div id="colors" class="colors"></div>
+        </div>
+
+        <button id="btn-host" class="btn primary">방 만들기</button>
+
+        <div class="join-row">
+          <input id="code" maxlength="4" placeholder="방 코드" autocomplete="off" inputmode="latin" />
+          <button id="btn-join" class="btn">참가</button>
+        </div>
+
+        <button id="btn-solo" class="btn ghost">혼자 둘러보기</button>
+        <p id="lobby-msg" class="msg"></p>
+      </div>
+    </div>
+
+    <!-- 게임 HUD -->
+    <div id="hud" class="hidden">
+      <div id="topbar">
+        <div id="room-badge"></div>
+        <div id="status"></div>
+      </div>
+
+      <div id="joystick"><div id="stick"></div></div>
+
+      <div id="actions">
+        <button id="btn-jump" class="round big">⬆️</button>
+      </div>
+
+      <div id="emotes">
+        <button data-emote="wave" class="round">👋</button>
+        <button data-emote="heart" class="round">💖</button>
+        <button data-emote="laugh" class="round">😆</button>
+        <button id="btn-chat" class="round">💬</button>
+      </div>
+
+      <form id="chat-form" class="hidden">
+        <input id="chat-input" maxlength="40" placeholder="말하기..." autocomplete="off" />
+        <button class="btn primary">보내기</button>
+      </form>
+
+      <div id="toast"></div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
