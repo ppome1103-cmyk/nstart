@@ -287,75 +287,78 @@ function setupNet(p) {
       hud?.setStatus(net.isHost ? '상대를 기다리는 중...' : '연결이 끊겼어요');
     },
     onStatus: (s) => hud?.setStatus(s),
-    onMessage(msg) {
-      if (partner) partner.lastSeen = performance.now();
-      switch (msg.t) {
-        case 'hi':
-          if (!partner) hud?.toast(`💕 ${msg.name} 님이 들어왔어요!`);
-          ensurePartner({ name: msg.name, color: msg.color, items: msg.items });
-          hud?.setStatus('💕 둘이 함께');
-          if (role === 'guest' && msg.night !== undefined) applyNight(msg.night > 0.5, false);
-          if (rides.mine) {
-            const { ride, seat, boardTime } = rides.mine;
-            net.send({ t: 'board', id: ride.id, seat, start: ride.start, bt: boardTime });
-          }
-          break;
-        case 'who':
-          net.send(helloMsg(p));
-          break;
-        case 'bye':
-          if (partner) hud?.toast(`${partner.info?.name ?? '상대'} 님이 나갔어요`);
-          removePartner();
-          hud?.setStatus(net.isHost ? '상대를 기다리는 중...' : '상대가 나갔어요');
-          break;
-        case 'ping':
-          net.send({ t: 'pong', c: msg.c, h: parkNow() });
-          break;
-        case 'pong':
-          onPong(msg.c, msg.h);
-          break;
-        case 's':
-          if (!partner) {
-            const now = performance.now();
-            if (now - askedWho > 1000) {
-              askedWho = now;
-              net.send({ t: 'who' });
-            }
-            return;
-          }
-          partner.target.set(msg.x, msg.y, msg.z);
-          partner.targetYaw = msg.r;
-          partner.grounded = !!msg.g;
-          partner.speed = msg.m;
-          partner.pose = msg.p || 'stand';
-          rides.syncPartner(msg.rd || null, msg.st ?? 0, msg.h);
-          if (msg.rd === 'bumper') rides.byId.bumper.setRemote(msg.st, msg.x, msg.z, msg.r);
-          break;
-        case 'emote':
-          partner?.avatar.emote(msg.e);
-          break;
-        case 'chat':
-          partner?.avatar.say(String(msg.text).slice(0, 40), 4);
-          break;
-        case 'items':
-          partner?.avatar.setItems(msg.items || {});
-          break;
-        case 'night':
-          applyNight(!!msg.on, false);
-          hud?.toast(msg.on ? '🌙 밤이 되었어요! 불꽃놀이가 시작돼요' : '☀️ 낮이 되었어요');
-          break;
-        case 'score':
-          hud?.toast(`${partner?.info?.name ?? '상대'} 님이 ${msg.game}에서 ${msg.score}점! 🎉`);
-          break;
-        case 'board':
-        case 'exit':
-        case 'rv':
-          rides.onNet(msg);
-          break;
-      }
-    },
+    onMessage: (msg) => handleMessage(msg, p),
   });
   return net;
+}
+
+// 상대에게서 온 메시지 처리 (데모 영상 녹화 때는 직접 넣기도 해요)
+function handleMessage(msg, p) {
+  if (partner) partner.lastSeen = performance.now();
+  switch (msg.t) {
+    case 'hi':
+      if (!partner) hud?.toast(`💕 ${msg.name} 님이 들어왔어요!`);
+      ensurePartner({ name: msg.name, color: msg.color, items: msg.items });
+      hud?.setStatus('💕 둘이 함께');
+      if (role === 'guest' && msg.night !== undefined) applyNight(msg.night > 0.5, false);
+      if (rides.mine) {
+        const { ride, seat, boardTime } = rides.mine;
+        net?.send({ t: 'board', id: ride.id, seat, start: ride.start, bt: boardTime });
+      }
+      break;
+    case 'who':
+      net?.send(helloMsg(p));
+      break;
+    case 'bye':
+      if (partner) hud?.toast(`${partner.info?.name ?? '상대'} 님이 나갔어요`);
+      removePartner();
+      hud?.setStatus(net?.isHost ? '상대를 기다리는 중...' : '상대가 나갔어요');
+      break;
+    case 'ping':
+      net?.send({ t: 'pong', c: msg.c, h: parkNow() });
+      break;
+    case 'pong':
+      onPong(msg.c, msg.h);
+      break;
+    case 's':
+      if (!partner) {
+        const now = performance.now();
+        if (now - askedWho > 1000) {
+          askedWho = now;
+          net?.send({ t: 'who' });
+        }
+        return;
+      }
+      partner.target.set(msg.x, msg.y, msg.z);
+      partner.targetYaw = msg.r;
+      partner.grounded = !!msg.g;
+      partner.speed = msg.m;
+      partner.pose = msg.p || 'stand';
+      rides.syncPartner(msg.rd || null, msg.st ?? 0, msg.h);
+      if (msg.rd === 'bumper') rides.byId.bumper.setRemote(msg.st, msg.x, msg.z, msg.r);
+      break;
+    case 'emote':
+      partner?.avatar.emote(msg.e);
+      break;
+    case 'chat':
+      partner?.avatar.say(String(msg.text).slice(0, 40), 4);
+      break;
+    case 'items':
+      partner?.avatar.setItems(msg.items || {});
+      break;
+    case 'night':
+      applyNight(!!msg.on, false);
+      hud?.toast(msg.on ? '🌙 밤이 되었어요! 불꽃놀이가 시작돼요' : '☀️ 낮이 되었어요');
+      break;
+    case 'score':
+      hud?.toast(`${partner?.info?.name ?? '상대'} 님이 ${msg.game}에서 ${msg.score}점! 🎉`);
+      break;
+    case 'board':
+    case 'exit':
+    case 'rv':
+      rides.onNet(msg);
+      break;
+  }
 }
 
 function showRoomBadge(code) {
@@ -1035,6 +1038,7 @@ function updateMusic() {
 // ---------------- 성능: 느리면 해상도 낮추기 ----------------
 let slowTime = 0;
 function adaptQuality(dt) {
+  if (window.__noAdapt) return;
   if (dt > 1 / 40) slowTime += dt;
   else slowTime = Math.max(0, slowTime - dt * 0.5);
   if (slowTime > 3 && pixelRatio > 1) {
@@ -1082,6 +1086,7 @@ function frame(nowMs) {
     for (const g of games) g.update(dt, t);
   }
   updateCamera(dt, t);
+  window.__game?.camOverride?.(camera, t, dt);
   fx.update(dt);
   if (me) processPhoto(t);
   frameNo++;
@@ -1109,6 +1114,17 @@ window.__game = {
   controls: () => controls,
   camera,
   renderer,
+  inject: (msg) => handleMessage(msg, { name: me?.avatar.name, color: me?.avatar.color }),
+  setPixelRatio: (r) => {
+    pixelRatio = r;
+    renderer.setPixelRatio(r);
+    resize();
+  },
+  fx,
+  get partnerObj() {
+    return partner;
+  },
+  equipped,
   teleport: (x, z) => {
     me.pos.set(x, 0, z);
   },

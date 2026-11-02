@@ -704,6 +704,7 @@ export function createPark(scene) {
 
   // ---------------- 불꽃놀이 ----------------
   const fireworks = new Fireworks(scene);
+  world.fireworks = fireworks;
 
   // ---------------- 갱신 ----------------
   const tmpColor = new THREE.Color();

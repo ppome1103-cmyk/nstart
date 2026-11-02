@@ -5,7 +5,7 @@ import { sfx } from '../audio.js';
 // 밤 불꽃놀이. 놀이공원 시간으로 일정하게 터져서 두 폰에서 거의 같이 보여요.
 const PER = 160;
 const INTERVAL = 1.6;
-const POOL = 6;
+const POOL = 7;
 
 export class Fireworks {
   constructor(scene) {
@@ -70,12 +70,12 @@ export class Fireworks {
         const th = (i / PER) * Math.PI * 2;
         const hx = 16 * Math.pow(Math.sin(th), 3);
         const hy = 13 * Math.cos(th) - 5 * Math.cos(2 * th) - 2 * Math.cos(3 * th) - Math.cos(4 * th);
-        v = new THREE.Vector3(hx / 16, hy / 16, (r() - 0.5) * 0.1).multiplyScalar(14);
+        v = new THREE.Vector3(hx / 16, hy / 16, (r() - 0.5) * 0.1).multiplyScalar(18);
       } else {
         const u = r() * 2 - 1;
         const ph = r() * Math.PI * 2;
         const s = Math.sqrt(1 - u * u);
-        v = new THREE.Vector3(Math.cos(ph) * s, u, Math.sin(ph) * s).multiplyScalar(13 + r() * 3);
+        v = new THREE.Vector3(Math.cos(ph) * s, u, Math.sin(ph) * s).multiplyScalar(16 + r() * 4);
       }
       b.dirs.push(v);
     }
@@ -95,7 +95,7 @@ export class Fireworks {
       const trail = this.trails[k];
       const age = t - b.start;
       const riseT = 1.0;
-      if (age < 0 || age > riseT + 2.6) {
+      if (age < 0 || age > riseT + 3.4) {
         b.pts.visible = false;
         trail.visible = false;
         continue;
@@ -122,8 +122,8 @@ export class Fireworks {
         pos[i * 3 + 2] = b.origin.z + d.z * k1;
       }
       b.pts.geometry.attributes.position.needsUpdate = true;
-      b.pts.material.opacity = Math.max(0, 1 - e / 2.6);
-      b.pts.material.size = 1.8 * (1 - e / 4);
+      b.pts.material.opacity = Math.max(0, 1 - Math.pow(e / 3.4, 1.6));
+      b.pts.material.size = 3.4 * (1 - e / 6);
       b.pts.visible = true;
     }
   }
