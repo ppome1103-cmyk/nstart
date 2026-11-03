@@ -443,8 +443,12 @@ $('btn-join').onclick = async () => {
   }
 };
 
-$('btn-diag').onclick = () => openNetDiag();
-setupNetOverlay(loadNetCfg());
+// 연결 진단은 주소 뒤에 ?debug=1 을 붙였을 때만 보여요 (일반 사용자에게는 숨김)
+if (new URLSearchParams(location.search).get('debug') === '1') {
+  $('btn-diag').classList.remove('hidden');
+  $('btn-diag').onclick = () => openNetDiag();
+  setupNetOverlay(loadNetCfg());
+}
 
 $('btn-solo').onclick = () => {
   role = 'solo';

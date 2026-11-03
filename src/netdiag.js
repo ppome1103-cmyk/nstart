@@ -30,6 +30,10 @@ export function saveCfg(cfg) {
 
 // 설정 읽기: 저장된 값 → 링크로 받은 값(#netcfg=) → 주소 옵션(?relay=1, ?debug=1) 순서로 덮어써요.
 export function loadCfg() {
+  const q = new URLSearchParams(location.search);
+  const debug = q.get('debug') === '1' || /netcfg=/.test(location.hash);
+  // 일반 모드에서는 시험하며 저장한 설정을 무시하고 항상 기본값을 써요
+  if (!debug) return { ...DEFAULTS };
   const cfg = { ...DEFAULTS, ...safeGet() };
   const m = location.hash.match(/netcfg=([^&]+)/);
   if (m) {
@@ -41,7 +45,6 @@ export function loadCfg() {
       /* 잘못된 링크 */
     }
   }
-  const q = new URLSearchParams(location.search);
   if (q.get('relay') === '1') cfg.policy = 'relay';
   if (q.get('debug') === '1') cfg.showLog = true;
   return cfg;
@@ -50,7 +53,7 @@ export function loadCfg() {
 export function shareLink(cfg) {
   const json = JSON.stringify({ policy: cfg.policy, turn: cfg.turn, urls: cfg.urls, username: cfg.username, credential: cfg.credential, showLog: true });
   const b64 = btoa(unescape(encodeURIComponent(json)));
-  return `${location.origin}${location.pathname}#netcfg=${encodeURIComponent(b64)}`;
+  return `${location.origin}${location.pathname}?debug=1#netcfg=${encodeURIComponent(b64)}`;
 }
 
 function parseUrls(text) {
