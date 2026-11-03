@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Avatar, ITEMS } from './avatar.js';
 import { Controls } from './controls.js';
 import { Net } from './net.js';
+import { openPanel as openNetDiag, loadCfg as loadNetCfg, setupOverlay as setupNetOverlay } from './netdiag.js';
 import { ScreenFX } from './fx.js';
 import { initAudio, sfx, setMuted, isMuted, setMusicLevel, setNightMusic, setWind } from './audio.js';
 import { parkNow, onPong, localNow } from './core/clock.js';
@@ -441,6 +442,9 @@ $('btn-join').onclick = async () => {
     lobbyBusy(false, err.message || `연결하지 못했어요 (${err.type})`);
   }
 };
+
+$('btn-diag').onclick = () => openNetDiag();
+setupNetOverlay(loadNetCfg());
 
 $('btn-solo').onclick = () => {
   role = 'solo';

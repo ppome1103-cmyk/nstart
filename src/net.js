@@ -1,4 +1,5 @@
 import Peer from 'peerjs';
+import { loadCfg, rtcConfig, diag, watchPeerConnection } from './netdiag.js';
 
 // PeerJS(WebRTC)로 폰끼리 직접 연결해요.
 // 한 명이 방을 만들면 4글자 코드가 나오고, 다른 한 명이 그 코드로 들어와요.
@@ -18,7 +19,8 @@ function randomCode(len = 4) {
 // 테스트용: ?peerHost=localhost&peerPort=9000 으로 직접 띄운 PeerJS 서버를 쓸 수 있어요.
 function peerOptions() {
   const q = new URLSearchParams(location.search);
-  const opts = { debug: 1 };
+  // 중계 서버 설정 (연결 진단에서 바꿀 수 있어요)
+  const opts = { debug: 1, config: rtcConfig(loadCfg()) };
   if (q.get('peerHost')) {
     opts.host = q.get('peerHost');
     opts.port = Number(q.get('peerPort') || 9000);
@@ -40,18 +42,24 @@ class NetError extends Error {
 // 연결 서버에 접속될 때까지 기다리기 (제한 시간 있음)
 function openPeer(id) {
   return new Promise((resolve, reject) => {
-    const peer = new Peer(id, peerOptions());
+    const opts = peerOptions();
+    const started = performance.now();
+    diag.log(`① 연결 서버(PeerServer) 접속 시도: ${opts.host || '0.peerjs.com'}`);
+    const peer = new Peer(id, opts);
     const timer = setTimeout(() => {
+      diag.log('① 연결 서버 접속 실패: 시간 초과');
       peer.destroy();
       reject(new NetError('연결 서버에 접속하지 못했어요. 인터넷 연결을 확인해주세요.', 'server-timeout'));
     }, SERVER_TIMEOUT);
     const onError = (err) => {
       clearTimeout(timer);
+      diag.log(`① 연결 서버 오류: ${err.type} ${err.message}`);
       peer.destroy();
       reject(err);
     };
     peer.once('open', () => {
       clearTimeout(timer);
+      diag.log(`① 연결 서버 접속 성공 (${Math.round(performance.now() - started)}ms)`);
       peer.off('error', onError);
       resolve(peer);
     });
@@ -133,7 +141,9 @@ export class Net {
   }
 
   send(msg) {
-    if (this.connected) this.conn.send(msg);
+    if (!this.connected) return;
+    this.conn.send(msg);
+    diag.sent++;
   }
 
   // ---------------- 내부 ----------------
@@ -146,6 +156,8 @@ export class Net {
     });
     peer.on('error', (err) => {
       console.warn('[net] peer error', err.type, err.message);
+      if (err.type === 'peer-unavailable') diag.log('② 방을 못 찾음: 상대가 연결 서버에 없어요 (코드 확인 / 방장 화면 켜두기)');
+      else diag.log(`연결 서버 오류: ${err.type} ${err.message}`);
       if (err.type === 'peer-unavailable' && this.pendingConn) {
         this.pendingConn.fail(new NetError('방을 찾을 수 없어요', 'peer-unavailable'));
       } else if (err.type === 'unavailable-id' && this.isHost) {
@@ -171,6 +183,7 @@ export class Net {
 
   _acceptIncoming(conn) {
     if (!this.isHost) return conn.close();
+    diag.log('② 상대가 방에 들어오려고 해요 (연결 서버를 통해 신호 받음)');
     if (this.connected) {
       // 이 게임은 둘이서만!
       conn.on('open', () => {
@@ -179,12 +192,15 @@ export class Net {
       });
       return;
     }
+    watchPeerConnection(conn, '방장 쪽');
     this._setupConn(conn);
   }
 
   _connectToHost() {
     return new Promise((resolve, reject) => {
+      diag.log(`② 방 ${this.code}에 연결 요청 (연결 서버를 통해 신호 보냄)`);
       const conn = this.peer.connect(PREFIX + this.code, { reliable: true, serialization: 'json' });
+      watchPeerConnection(conn, '참가자 쪽');
       let done = false;
       const finish = (err) => {
         if (done) return;
@@ -197,7 +213,10 @@ export class Net {
         } else resolve();
       };
       const timer = setTimeout(
-        () => finish(new NetError('직접 연결 시간 초과', 'connect-timeout')),
+        () => {
+          diag.log(`⑤ 데이터 채널이 ${CONNECT_TIMEOUT / 1000}초 안에 안 열렸어요 (WebRTC 단계에서 실패)`);
+          finish(new NetError('직접 연결 시간 초과', 'connect-timeout'));
+        },
         CONNECT_TIMEOUT,
       );
       this.pendingConn = { fail: finish };
@@ -210,9 +229,23 @@ export class Net {
   _setupConn(conn) {
     conn.on('open', () => {
       this.conn = conn;
+      diag.log('⑤ 데이터 채널 열림: 게임 데이터 주고받기 시작');
+      this._startPing(conn);
       this.onConnect?.();
     });
     conn.on('data', (msg) => {
+      diag.recv++;
+      // 진단용 왕복 시간 측정
+      if (msg && msg.t === 'dping') {
+        conn.send({ t: 'dpong', c: msg.c });
+        return;
+      }
+      if (msg && msg.t === 'dpong') {
+        diag.rtt = Math.round(performance.now() - msg.c);
+        this._pongs = (this._pongs || 0) + 1;
+        if (this._pongs <= 2 || this._pongs % 15 === 0) diag.log(`⑥ 게임 데이터 왕복 ${diag.rtt}ms (보냄 ${diag.sent} / 받음 ${diag.recv})`);
+        return;
+      }
       if (msg && msg.t === 'full') {
         this.closed = true;
         this.onStatus?.('이미 두 명이 들어가 있는 방이에요');
@@ -222,12 +255,22 @@ export class Net {
     });
     const closed = () => {
       if (this.conn !== conn) return;
+      diag.log('연결 끊김');
       this.conn = null;
       this.onDisconnect?.();
       if (!this.isHost) this._scheduleRetry();
     };
     conn.on('close', closed);
     conn.on('error', closed);
+  }
+
+  _startPing(conn) {
+    clearInterval(this._pingTimer);
+    this._pingTimer = setInterval(() => {
+      if (this.conn !== conn || !conn.open) return clearInterval(this._pingTimer);
+      conn.send({ t: 'dping', c: performance.now() });
+      diag.sent++;
+    }, 4000);
   }
 
   // 게스트는 게임 중에 끊기면 자동으로 다시 접속 시도
